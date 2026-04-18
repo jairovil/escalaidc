@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>Admin | Gerenciar Usuários</title>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    body {
+        background: #0f172a;
+        font-family: 'Segoe UI', Arial, sans-serif;
+        color: white;
+    }
+    header {
+        background: #020617;
+        padding: 15px;
+        text-align: center;
+        font-size: 18px;
+        font-weight: bold;
+        border-bottom: 2px solid #22c55e;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .container {
+        padding: 20px;
+        max-width: 1000px;
+        margin: auto;
+    }
+    .card {
+        background: #1e293b;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 12px;
+    }
+    .card h3 {
+        margin-bottom: 15px;
+        border-left: 3px solid #22c55e;
+        padding-left: 10px;
+    }
+    input, select {
+        width: 100%;
+        padding: 12px;
+        margin: 8px 0;
+        border-radius: 8px;
+        border: none;
+        background: #0f172a;
+        color: white;
+        border: 1px solid #334155;
+    }
+    button {
+        padding: 10px 20px;
+        background: #22c55e;
+        border: none;
+        border-radius: 8px;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+    button:hover {
+        background: #16a34a;
+    }
+    .btn-voltar {
+        background: #facc15;
+        color: #0f172a;
+    }
+    .btn-danger {
+        background: #ef4444;
+    }
+    .btn-editar {
+        background: #3b82f6;
+        padding: 6px 12px;
+        font-size: 12px;
+        margin: 2px;
+    }
+    .btn-excluir {
+        background: #ef4444;
+        padding: 6px 12px;
+        font-size: 12px;
+        margin: 2px;
+    }
+    .tabela-usuarios {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .tabela-usuarios th, .tabela-usuarios td {
+        padding: 12px 8px;
+        text-align: left;
+        border-bottom: 1px solid #334155;
+    }
+    .tabela-usuarios th {
+        color: #facc15;
+    }
+    .badge-admin {
+        background: #facc1520;
+        color: #facc15;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 11px;
+    }
+    .badge-user {
+        background: #22c55e20;
+        color: #86efac;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 11px;
+    }
+    .toast {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1e293b;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 30px;
+        font-size: 0.75rem;
+        z-index: 1000;
+        animation: fadeOut 2.5s ease forwards;
+        border-left: 3px solid #22c55e;
+    }
+    @keyframes fadeOut {
+        0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+        15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+        85% { opacity: 1; }
+        100% { opacity: 0; visibility: hidden; }
+    }
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+    .modal-content {
+        background: #1e293b;
+        padding: 25px;
+        border-radius: 16px;
+        width: 90%;
+        max-width: 400px;
+        border: 1px solid #22c55e;
+    }
+    .modal-buttons {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    .modal-buttons button {
+        flex: 1;
+        margin: 0;
+    }
+    .membro-item {
+        background: #0f172a;
+        padding: 8px 15px;
+        border-radius: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin: 5px;
+    }
+    @media (max-width: 700px) {
+        .container { padding: 12px; }
+        .tabela-usuarios th, .tabela-usuarios td { font-size: 12px; padding: 8px 4px; }
+    }
+</style>
+</head>
+<body>
+
+<header>
+    <span>👑 Painel do Administrador</span>
+    <div>
+        <button class="btn-voltar" onclick="window.location.href='index.html'">◀ Voltar</button>
+        <button class="btn-danger" onclick="logout()">🚪 Sair</button>
+    </div>
+</header>
+
+<div class="container">
+    <div class="card">
+        <h3>➕ Adicionar Usuário</h3>
+        <input type="text" id="novoUsuario" placeholder="Usuário">
+        <input type="text" id="novoNome" placeholder="Nome completo">
+        <input type="password" id="novaSenha" placeholder="Senha">
+        <select id="novoRole">
+            <option value="user">👤 Usuário Comum</option>
+            <option value="admin">👑 Administrador</option>
+        </select>
+        <button onclick="adicionarUsuario()">✅ Cadastrar</button>
+    </div>
+
+    <div class="card">
+        <h3>📋 Usuários Cadastrados</h3>
+        <div id="listaUsuarios"></div>
+    </div>
+
+    <div class="card">
+        <h3>👥 Gerenciar Membros (Lista para Admin)</h3>
+        <div style="display: flex; gap: 10px;">
+            <input type="text" id="novoMembro" placeholder="Nome do membro" style="flex:2;">
+            <button onclick="adicionarMembro()" style="width:auto;">➕ Adicionar</button>
+        </div>
+        <div id="listaMembros" style="margin-top:15px;"></div>
+        <div style="font-size: 12px; color: #94a3b8; margin-top: 10px;">
+            💡 Estes nomes aparecerão no select do admin para agendar para outras pessoas
+        </div>
+    </div>
+</div>
+
+<div id="modalEditar" class="modal">
+    <div class="modal-content">
+        <h4>✏️ Editar Usuário</h4>
+        <input type="text" id="editId" style="display:none;">
+        <input type="text" id="editUsuario" readonly style="background:#0f172a80;">
+        <input type="text" id="editNome" placeholder="Nome">
+        <input type="password" id="editSenha" placeholder="Nova senha (opcional)">
+        <select id="editRole">
+            <option value="user">👤 Usuário</option>
+            <option value="admin">👑 Admin</option>
+        </select>
+        <div class="modal-buttons">
+            <button onclick="salvarEdicao()" style="background:#22c55e;">💾 Salvar</button>
+            <button onclick="fecharModal()" style="background:#ef4444;">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyDSsIYqwWIPlxhiJnw0q_YnXCwOW2uNcqU",
+        authDomain: "appigreja-3cffa.firebaseapp.com",
+        projectId: "appigreja-3cffa",
+        storageBucket: "appigreja-3cffa.firebasestorage.app",
+        messagingSenderId: "984798074954",
+        appId: "1:984798074954:web:44bceded9219b1e4242eb3"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    
+    // DEBUG: Mostrar informações no console
+    console.log("=== ADMIN PAGE ===");
+    console.log("sessionStorage logado:", sessionStorage.getItem("logado"));
+    console.log("sessionStorage usuarioRole:", sessionStorage.getItem("usuarioRole"));
+    console.log("sessionStorage usuario:", sessionStorage.getItem("usuario"));
+    
+    // Verificar se está logado e é admin
+    const isLogado = sessionStorage.getItem("logado");
+    const userRole = sessionStorage.getItem("usuarioRole");
+    
+    if (!isLogado || isLogado !== "true") {
+        alert("⚠️ Você não está logado! Faça login primeiro.");
+        window.location.href = "login.html";
+    } else if (userRole !== "admin") {
+        alert("⚠️ Acesso negado! Apenas administradores podem acessar esta página.\nSeu role: " + userRole);
+        window.location.href = "index.html";
+    }
+    
+    let usuarioEditando = null;
+    
+    async function adicionarUsuario() {
+        const usuario = document.getElementById("novoUsuario").value.trim();
+        const nome = document.getElementById("novoNome").value.trim();
+        const senha = document.getElementById("novaSenha").value;
+        const role = document.getElementById("novoRole").value;
+        
+        if (!usuario || !nome || !senha) {
+            showToast("❌ Preencha todos os campos!", "erro");
+            return;
+        }
+        
+        if (senha.length < 4) {
+            showToast("❌ A senha deve ter pelo menos 4 caracteres!", "erro");
+            return;
+        }
+        
+        try {
+            const exists = await db.collection("usuarios").where("usuario", "==", usuario).get();
+            if (!exists.empty) {
+                showToast("❌ Este usuário já existe!", "erro");
+                return;
+            }
+            
+            await db.collection("usuarios").add({
+                usuario: usuario,
+                nome: nome,
+                senha: senha,
+                role: role,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            document.getElementById("novoUsuario").value = "";
+            document.getElementById("novoNome").value = "";
+            document.getElementById("novaSenha").value = "";
+            
+            carregarUsuarios();
+            showToast(`✅ Usuário ${usuario} cadastrado com sucesso!`, "sucesso");
+        } catch (error) {
+            console.error("Erro:", error);
+            showToast("❌ Erro ao cadastrar: " + error.message, "erro");
+        }
+    }
+    
+    async function carregarUsuarios() {
+        try {
+            const snapshot = await db.collection("usuarios").get();
+            let html = `<table class="tabela-usuarios"><thead><tr><th>Usuário</th><th>Nome</th><th>Tipo</th><th>Ações</th></tr></thead><tbody>`;
+            
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                html += `<tr>
+                    <td><strong>${escapeHtml(data.usuario)}</strong></td>
+                    <td>${escapeHtml(data.nome)}</td>
+                    <td>${data.role === 'admin' ? '<span class="badge-admin">👑 Admin</span>' : '<span class="badge-user">👤 Usuário</span>'}</td>
+                    <td>
+                        <button class="btn-editar" onclick="abrirModal('${doc.id}', '${data.usuario}', '${data.nome}', '${data.role}')">✏️ Editar</button>
+                        <button class="btn-excluir" onclick="excluirUsuario('${doc.id}', '${data.usuario}')">🗑️ Excluir</button>
+                     </td>
+                 </tr>`;
+            });
+            
+            html += `</tbody></table>`;
+            document.getElementById("listaUsuarios").innerHTML = html || "<div style='padding:20px; text-align:center;'>Nenhum usuário cadastrado</div>";
+        } catch (error) {
+            console.error("Erro:", error);
+            document.getElementById("listaUsuarios").innerHTML = "<div style='padding:20px; text-align:center; color:#ef4444;'>Erro ao carregar usuários</div>";
+        }
+    }
+    
+    function abrirModal(id, usuario, nome, role) {
+        usuarioEditando = id;
+        document.getElementById("editId").value = id;
+        document.getElementById("editUsuario").value = usuario;
+        document.getElementById("editNome").value = nome;
+        document.getElementById("editRole").value = role;
+        document.getElementById("editSenha").value = "";
+        document.getElementById("modalEditar").style.display = "flex";
+    }
+    
+    async function salvarEdicao() {
+        const novoNome = document.getElementById("editNome").value.trim();
+        const novaSenha = document.getElementById("editSenha").value;
+        const novoRole = document.getElementById("editRole").value;
+        
+        if (!novoNome) {
+            showToast("❌ O nome não pode ficar vazio!", "erro");
+            return;
+        }
+        
+        const updateData = { nome: novoNome, role: novoRole };
+        if (novaSenha && novaSenha.trim() !== "") {
+            if (novaSenha.length < 4) {
+                showToast("❌ A senha deve ter pelo menos 4 caracteres!", "erro");
+                return;
+            }
+            updateData.senha = novaSenha;
+        }
+        
+        try {
+            await db.collection("usuarios").doc(usuarioEditando).update(updateData);
+            fecharModal();
+            carregarUsuarios();
+            showToast("✅ Usuário atualizado com sucesso!", "sucesso");
+        } catch (error) {
+            showToast("❌ Erro ao atualizar: " + error.message, "erro");
+        }
+    }
+    
+    async function excluirUsuario(id, usuario) {
+        if (usuario === "admin") {
+            showToast("❌ Não é possível excluir o usuário administrador principal!", "erro");
+            return;
+        }
+        
+        if (confirm(`Tem certeza que deseja excluir o usuário "${usuario}"?`)) {
+            try {
+                await db.collection("usuarios").doc(id).delete();
+                carregarUsuarios();
+                showToast(`✅ Usuário ${usuario} excluído com sucesso!`, "sucesso");
+            } catch (error) {
+                showToast("❌ Erro ao excluir: " + error.message, "erro");
+            }
+        }
+    }
+    
+    function fecharModal() {
+        document.getElementById("modalEditar").style.display = "none";
+        usuarioEditando = null;
+    }
+    
+    // ==================== MEMBROS ====================
+    let membros = JSON.parse(localStorage.getItem("membros_lista")) || ["Kelly", "Jairo", "Maria", "João", "Ana", "Paulo", "Carla", "Roberto"];
+    
+    function salvarMembros() {
+        localStorage.setItem("membros_lista", JSON.stringify(membros));
+    }
+    
+    function carregarMembros() {
+        membros = JSON.parse(localStorage.getItem("membros_lista")) || [];
+        const container = document.getElementById("listaMembros");
+        
+        if (membros.length === 0) {
+            container.innerHTML = '<div style="color:#94a3b8;">Nenhum membro cadastrado</div>';
+            return;
+        }
+        
+        let html = '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
+        membros.forEach((membro, index) => {
+            html += `<div class="membro-item">
+                        <span>👤 ${escapeHtml(membro)}</span>
+                        <button onclick="removerMembro(${index})" style="background:#ef4444; padding:2px 8px; width:auto; margin:0; font-size:10px;">✖</button>
+                    </div>`;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    }
+    
+    function adicionarMembro() {
+        const novoMembro = document.getElementById("novoMembro").value.trim();
+        if (!novoMembro) {
+            showToast("❌ Digite o nome do membro!", "erro");
+            return;
+        }
+        
+        if (membros.includes(novoMembro)) {
+            showToast("❌ Este membro já existe!", "erro");
+            return;
+        }
+        
+        membros.push(novoMembro);
+        salvarMembros();
+        document.getElementById("novoMembro").value = "";
+        carregarMembros();
+        showToast(`✅ ${novoMembro} adicionado à lista!`, "sucesso");
+    }
+    
+    function removerMembro(index) {
+        const removido = membros[index];
+        membros.splice(index, 1);
+        salvarMembros();
+        carregarMembros();
+        showToast(`❌ ${removido} removido da lista!`, "sucesso");
+    }
+    
+    function escapeHtml(str) {
+        if (!str) return "";
+        return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
+    }
+    
+    function showToast(msg, tipo) {
+        let toast = document.querySelector(".toast");
+        if (toast) toast.remove();
+        toast = document.createElement("div");
+        toast.className = "toast";
+        toast.style.borderLeftColor = tipo === "erro" ? "#ef4444" : "#22c55e";
+        toast.textContent = msg;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2500);
+    }
+    
+    function logout() {
+        sessionStorage.clear();
+        window.location.href = "login.html";
+    }
+    
+    // ==================== INICIALIZAÇÃO ====================
+    carregarUsuarios();
+    carregarMembros();
+    
+    window.onclick = function(e) {
+        if (e.target === document.getElementById("modalEditar")) fecharModal();
+    }
+</script>
+</body>
+</html>
