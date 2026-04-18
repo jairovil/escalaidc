@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>Login | Voluntários Igreja da Criança</title>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    body {
+        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+        font-family: 'Segoe UI', Arial, sans-serif;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .login-container {
+        background: #1e293b;
+        padding: 40px;
+        border-radius: 24px;
+        width: 90%;
+        max-width: 420px;
+        text-align: center;
+        border: 1px solid #22c55e;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+    .login-container h2 {
+        color: #facc15;
+        margin-bottom: 10px;
+        font-size: 26px;
+    }
+    .login-container .sub {
+        color: #94a3b8;
+        font-size: 14px;
+        margin-bottom: 25px;
+    }
+    input {
+        width: 100%;
+        padding: 14px;
+        margin: 10px 0;
+        border-radius: 10px;
+        border: none;
+        background: #0f172a;
+        color: white;
+        font-size: 16px;
+        border: 1px solid #334155;
+    }
+    input:focus {
+        outline: none;
+        border-color: #22c55e;
+    }
+    button {
+        width: 100%;
+        padding: 14px;
+        background: #22c55e;
+        border: none;
+        border-radius: 10px;
+        color: white;
+        font-weight: bold;
+        font-size: 16px;
+        cursor: pointer;
+        margin-top: 15px;
+        transition: all 0.2s;
+    }
+    button:hover {
+        background: #16a34a;
+        transform: scale(0.98);
+    }
+    .error {
+        color: #ef4444;
+        margin-top: 15px;
+        font-size: 14px;
+    }
+    .info {
+        color: #5b6e8c;
+        font-size: 12px;
+        margin-top: 20px;
+        padding-top: 15px;
+        border-top: 1px solid #334155;
+    }
+    .versiculo {
+        color: #86efac;
+        font-size: 12px;
+        margin-top: 20px;
+        font-style: italic;
+    }
+    .loading {
+        display: none;
+        color: #facc15;
+        margin-top: 15px;
+        font-size: 13px;
+    }
+    .toggle-link {
+        color: #22c55e;
+        cursor: pointer;
+        margin-top: 10px;
+        font-size: 14px;
+        display: inline-block;
+    }
+    .toggle-link:hover {
+        text-decoration: underline;
+    }
+</style>
+</head>
+<body>
+<div class="login-container">
+    <h2>🙌 Igreja da Criança PIBV</h2>
+    <div class="sub">Área de Voluntários</div>
+    
+    <div id="loginForm">
+        <input type="text" id="usuario" placeholder="Usuário" autocomplete="off">
+        <input type="password" id="senha" placeholder="Senha">
+        <button onclick="fazerLogin()">🔐 Entrar</button>
+        <div style="margin-top: 15px;">
+            <span class="toggle-link" onclick="mostrarCadastro()">📝 Não tem conta? Cadastre-se</span>
+        </div>
+    </div>
+    
+    <div id="cadastroForm" style="display: none;">
+        <input type="text" id="novoUsuario" placeholder="Usuário" autocomplete="off">
+        <input type="text" id="novoNome" placeholder="Nome completo" autocomplete="off">
+        <input type="password" id="novaSenha" placeholder="Senha">
+        <input type="password" id="confirmaSenha" placeholder="Confirmar senha">
+        <button onclick="cadastrar()">📝 Cadastrar</button>
+        <div style="margin-top: 15px;">
+            <span class="toggle-link" onclick="mostrarLogin()">◀ Voltar para o login</span>
+        </div>
+    </div>
+    
+    <div class="loading" id="loading">⏳ Processando...</div>
+    <div id="mensagem" class="error"></div>
+    
+    <div class="info">
+        📌 Usuário padrão: <strong>admin</strong> | Senha: <strong>admin123</strong>
+    </div>
+    <div class="versiculo">
+        🌿 "Cada um sirva conforme o dom que recebeu" - 1 Pedro 4:10
+    </div>
+</div>
+
+<script>
+    // ==================== CONFIGURAÇÃO DO FIREBASE ====================
+    const firebaseConfig = {
+        apiKey: "AIzaSyDSsIYqwWIPlxhiJnw0q_YnXCwOW2uNcqU",
+        authDomain: "appigreja-3cffa.firebaseapp.com",
+        projectId: "appigreja-3cffa",
+        storageBucket: "appigreja-3cffa.firebasestorage.app",
+        messagingSenderId: "984798074954",
+        appId: "1:984798074954:web:44bceded9219b1e4242eb3"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    
+    const EMAIL_ADMIN = "admin@igreja.com";
+    
+    function mostrarCadastro() {
+        document.getElementById("loginForm").style.display = "none";
+        document.getElementById("cadastroForm").style.display = "block";
+        document.getElementById("mensagem").innerHTML = "";
+    }
+    
+    function mostrarLogin() {
+        document.getElementById("loginForm").style.display = "block";
+        document.getElementById("cadastroForm").style.display = "none";
+        document.getElementById("mensagem").innerHTML = "";
+    }
+    
+    async function cadastrar() {
+        const usuario = document.getElementById("novoUsuario").value.trim();
+        const nome = document.getElementById("novoNome").value.trim();
+        const senha = document.getElementById("novaSenha").value;
+        const confirmar = document.getElementById("confirmaSenha").value;
+        
+        if (!usuario || !nome || !senha) {
+            document.getElementById("mensagem").innerHTML = "❌ Preencha todos os campos!";
+            return;
+        }
+        
+        if (senha !== confirmar) {
+            document.getElementById("mensagem").innerHTML = "❌ As senhas não coincidem!";
+            return;
+        }
+        
+        if (senha.length < 6) {
+            document.getElementById("mensagem").innerHTML = "❌ A senha deve ter pelo menos 6 caracteres!";
+            return;
+        }
+        
+        document.getElementById("loading").style.display = "block";
+        document.getElementById("mensagem").innerHTML = "";
+        
+        try {
+            // Criar usuário no Firebase Auth com email fake
+            const emailFake = `${usuario}@voluntario.com`;
+            const userCredential = await auth.createUserWithEmailAndPassword(emailFake, senha);
+            
+            // Salvar dados do usuário no Firestore
+            await db.collection("usuarios").doc(userCredential.user.uid).set({
+                usuario: usuario,
+                nome: nome,
+                role: "user",
+                email: emailFake,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            // Salvar na sessão
+            sessionStorage.setItem("logado", "true");
+            sessionStorage.setItem("usuario", usuario);
+            sessionStorage.setItem("usuarioNome", nome);
+            sessionStorage.setItem("usuarioRole", "user");
+            sessionStorage.setItem("usuarioUid", userCredential.user.uid);
+            
+            window.location.href = "index.html";
+            
+        } catch (error) {
+            console.error("Erro:", error);
+            if (error.code === 'auth/email-already-in-use') {
+                document.getElementById("mensagem").innerHTML = "❌ Este usuário já está cadastrado!";
+            } else {
+                document.getElementById("mensagem").innerHTML = "❌ Erro ao cadastrar: " + error.message;
+            }
+        } finally {
+            document.getElementById("loading").style.display = "none";
+        }
+    }
+    
+    async function fazerLogin() {
+        const usuario = document.getElementById("usuario").value.trim();
+        const senha = document.getElementById("senha").value;
+        
+        if (!usuario || !senha) {
+            document.getElementById("mensagem").innerHTML = "❌ Preencha usuário e senha!";
+            return;
+        }
+        
+        document.getElementById("loading").style.display = "block";
+        document.getElementById("mensagem").innerHTML = "";
+        
+        // Verificar se é o admin (acesso especial)
+        if (usuario === "admin" && senha === "admin123") {
+            sessionStorage.setItem("logado", "true");
+            sessionStorage.setItem("usuario", "admin");
+            sessionStorage.setItem("usuarioNome", "Administrador");
+            sessionStorage.setItem("usuarioRole", "admin");
+            window.location.href = "index.html";
+            return;
+        }
+        
+        try {
+            // Buscar usuário no Firestore
+            const querySnapshot = await db.collection("usuarios").where("usuario", "==", usuario).get();
+            
+            if (querySnapshot.empty) {
+                document.getElementById("mensagem").innerHTML = "❌ Usuário não encontrado!";
+                document.getElementById("loading").style.display = "none";
+                return;
+            }
+            
+            const userDoc = querySnapshot.docs[0];
+            const userData = userDoc.data();
+            
+            // Tentar fazer login com o email associado
+            const emailFake = `${usuario}@voluntario.com`;
+            
+            try {
+                const userCredential = await auth.signInWithEmailAndPassword(emailFake, senha);
+                
+                sessionStorage.setItem("logado", "true");
+                sessionStorage.setItem("usuario", userData.usuario);
+                sessionStorage.setItem("usuarioNome", userData.nome);
+                sessionStorage.setItem("usuarioRole", userData.role || "user");
+                sessionStorage.setItem("usuarioUid", userCredential.user.uid);
+                
+                window.location.href = "index.html";
+                
+            } catch (authError) {
+                document.getElementById("mensagem").innerHTML = "❌ Senha incorreta!";
+            }
+            
+        } catch (error) {
+            console.error("Erro:", error);
+            document.getElementById("mensagem").innerHTML = "❌ Erro ao fazer login!";
+        } finally {
+            document.getElementById("loading").style.display = "none";
+        }
+    }
+    
+    // Verificar se já está logado
+    if (sessionStorage.getItem("logado") === "true") {
+        window.location.href = "index.html";
+    }
+</script>
+</body>
+</html>
