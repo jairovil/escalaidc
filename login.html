@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>Login | Voluntários Igreja da Criança</title>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    body {
+        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+        font-family: 'Segoe UI', Arial, sans-serif;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .login-container {
+        background: #1e293b;
+        padding: 40px;
+        border-radius: 24px;
+        width: 90%;
+        max-width: 420px;
+        text-align: center;
+        border: 1px solid #22c55e;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+    .login-container h2 {
+        color: #facc15;
+        margin-bottom: 10px;
+        font-size: 26px;
+    }
+    .login-container .sub {
+        color: #94a3b8;
+        font-size: 14px;
+        margin-bottom: 25px;
+    }
+    input {
+        width: 100%;
+        padding: 14px;
+        margin: 10px 0;
+        border-radius: 10px;
+        border: none;
+        background: #0f172a;
+        color: white;
+        font-size: 16px;
+        border: 1px solid #334155;
+    }
+    input:focus {
+        outline: none;
+        border-color: #22c55e;
+    }
+    button {
+        width: 100%;
+        padding: 14px;
+        background: #22c55e;
+        border: none;
+        border-radius: 10px;
+        color: white;
+        font-weight: bold;
+        font-size: 16px;
+        cursor: pointer;
+        margin-top: 15px;
+        transition: all 0.2s;
+    }
+    button:hover {
+        background: #16a34a;
+        transform: scale(0.98);
+    }
+    .error {
+        color: #ef4444;
+        margin-top: 15px;
+        font-size: 14px;
+    }
+    .info {
+        color: #5b6e8c;
+        font-size: 12px;
+        margin-top: 20px;
+        padding-top: 15px;
+        border-top: 1px solid #334155;
+    }
+    .versiculo {
+        color: #86efac;
+        font-size: 12px;
+        margin-top: 20px;
+        font-style: italic;
+    }
+    .loading {
+        display: none;
+        color: #facc15;
+        margin-top: 15px;
+        font-size: 13px;
+    }
+</style>
+</head>
+<body>
+<div class="login-container">
+    <h2>🙌 Igreja da Criança PIBV</h2>
+    <div class="sub">Área de Voluntários</div>
+    
+    <div id="loginForm">
+        <input type="text" id="usuario" placeholder="Usuário" autocomplete="off">
+        <input type="password" id="senha" placeholder="Senha">
+        <button onclick="fazerLogin()">🔐 Entrar</button>
+    </div>
+    
+    <div class="loading" id="loading">⏳ Processando...</div>
+    <div id="mensagem" class="error"></div>
+    
+    <div class="info">
+        📌 Contate o administrador para obter acesso<br>
+    </div>
+    <div class="versiculo">
+        🌿 "Cada um sirva conforme o dom que recebeu" - 1 Pedro 4:10
+    </div>
+</div>
+
+<script>
+    // ==================== CONFIGURAÇÃO DO FIREBASE ====================
+    const firebaseConfig = {
+        apiKey: "AIzaSyDSsIYqwWIPlxhiJnw0q_YnXCwOW2uNcqU",
+        authDomain: "appigreja-3cffa.firebaseapp.com",
+        projectId: "appigreja-3cffa",
+        storageBucket: "appigreja-3cffa.firebasestorage.app",
+        messagingSenderId: "984798074954",
+        appId: "1:984798074954:web:44bceded9219b1e4242eb3"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    
+    // Usuário admin padrão (será criado se não existir)
+    async function criarAdminPadrao() {
+        try {
+            const querySnapshot = await db.collection("usuarios").where("usuario", "==", "admin").get();
+            if (querySnapshot.empty) {
+                await db.collection("usuarios").add({
+                    usuario: "admin",
+                    nome: "Administrador",
+                    senha: "admin123",
+                    role: "admin",
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                console.log("Admin padrão criado!");
+            }
+        } catch (error) {
+            console.log("Erro ao criar admin:", error);
+        }
+    }
+    
+    criarAdminPadrao();
+    
+    async function fazerLogin() {
+        const usuario = document.getElementById("usuario").value.trim();
+        const senha = document.getElementById("senha").value;
+        
+        if (!usuario || !senha) {
+            document.getElementById("mensagem").innerHTML = "❌ Preencha usuário e senha!";
+            return;
+        }
+        
+        document.getElementById("loading").style.display = "block";
+        document.getElementById("mensagem").innerHTML = "";
+        
+        try {
+            // Buscar usuário no Firestore
+            const querySnapshot = await db.collection("usuarios").where("usuario", "==", usuario).get();
+            
+            if (querySnapshot.empty) {
+                document.getElementById("mensagem").innerHTML = "❌ Usuário não encontrado!";
+                document.getElementById("loading").style.display = "none";
+                return;
+            }
+            
+            const userDoc = querySnapshot.docs[0];
+            const userData = userDoc.data();
+            
+            // Verificar senha
+            if (userData.senha === senha) {
+                sessionStorage.setItem("logado", "true");
+                sessionStorage.setItem("usuario", userData.usuario);
+                sessionStorage.setItem("usuarioNome", userData.nome);
+                sessionStorage.setItem("usuarioRole", userData.role || "user");
+                sessionStorage.setItem("usuarioId", userDoc.id);
+                
+                window.location.href = "index.html";
+            } else {
+                document.getElementById("mensagem").innerHTML = "❌ Senha incorreta!";
+            }
+            
+        } catch (error) {
+            console.error("Erro:", error);
+            document.getElementById("mensagem").innerHTML = "❌ Erro ao fazer login: " + error.message;
+        } finally {
+            document.getElementById("loading").style.display = "none";
+        }
+    }
+    
+    // Verificar se já está logado
+    if (sessionStorage.getItem("logado") === "true") {
+        window.location.href = "index.html";
+    }
+    
+    // Permitir Enter para logar
+    document.getElementById("senha").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") fazerLogin();
+    });
+    document.getElementById("usuario").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") document.getElementById("senha").focus();
+    });
+</script>
+</body>
+</html>
