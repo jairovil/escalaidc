@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+<title>Voluntários Para Servir | Igreja da Criança PIBV</title>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    margin: 0;
+    font-family: 'Segoe UI', Arial, system-ui, sans-serif;
+    background: #0f172a;
+    color: white;
+}
+header {
+    background: #020617;
+    padding: 15px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    border-bottom: 2px solid #22c55e;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+.container {
+    padding: 12px;
+    max-width: 1000px;
+    margin: auto;
+}
+.card {
+    background: #1e293b;
+    padding: 12px;
+    margin-bottom: 12px;
+    border-radius: 12px;
+}
+.card h3 {
+    margin-bottom: 10px;
+    font-size: 16px;
+    border-left: 3px solid #22c55e;
+    padding-left: 10px;
+}
+.header-buttons {
+    position: fixed;
+    top: 70px;
+    right: 15px;
+    display: flex;
+    gap: 8px;
+    z-index: 101;
+}
+.btn-header {
+    width: auto;
+    padding: 6px 12px;
+    font-size: 11px;
+    margin: 0;
+    border-radius: 20px;
+}
+.btn-admin {
+    background: #facc15;
+    color: #0f172a;
+}
+.btn-logout {
+    background: #ef4444;
+}
+.user-info {
+    position: fixed;
+    top: 70px;
+    left: 15px;
+    background: #0f172a;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    color: #86efac;
+    z-index: 101;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.user-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.versiculo-topo {
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    text-align: center;
+    padding: 10px;
+    margin-bottom: 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    color: #86efac;
+    border-left: 3px solid #22c55e;
+    border-right: 3px solid #22c55e;
+}
+.calendario-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.mes-ano {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #facc15;
+}
+.nav-mes {
+    background: #0f172a;
+    border: 1px solid #334155;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    width: auto;
+    margin: 0;
+    font-size: 0.75rem;
+}
+.nav-mes:hover {
+    background: #22c55e;
+    border-color: #22c55e;
+}
+.dias-semana {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #94a3b8;
+    font-size: 0.7rem;
+}
+.calendario-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+.dia-calendario {
+    background: #0f172a;
+    border-radius: 8px;
+    padding: 6px 2px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid #334155;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.dia-calendario:hover {
+    transform: scale(0.95);
+    border-color: #22c55e;
+    background: #1e293b;
+}
+.dia-calendario.selected {
+    border: 2px solid #22c55e;
+    background: #22c55e20;
+    box-shadow: 0 0 8px rgba(34,197,94,0.3);
+}
+.dia-numero {
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+.dia-culto {
+    font-size: 0.5rem;
+    padding: 1px 3px;
+    border-radius: 12px;
+    margin-top: 3px;
+    display: inline-block;
+    white-space: nowrap;
+}
+.dia-culto.domingo-ebd { background: #3b82f620; color: #93c5fd; }
+.dia-culto.domingo-culto { background: #22c55e20; color: #86efac; }
+.dia-culto.quarta { background: #facc1520; color: #fde047; }
+.dia-sem-culto { color: #475569; font-size: 0.5rem; }
+.outro-mes {
+    opacity: 0.3;
+}
+.vagas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+}
+.vaga-card {
+    background: #0f172a;
+    padding: 10px 6px;
+    border-radius: 10px;
+    cursor: pointer;
+    border: 2px solid #334155;
+    text-align: center;
+    transition: all 0.2s;
+}
+.vaga-card:hover {
+    border-color: #22c55e;
+    transform: scale(0.98);
+}
+.vaga-card.selected {
+    border: 2px solid #22c55e;
+    background: #22c55e20;
+    box-shadow: 0 0 8px rgba(34,197,94,0.3);
+}
+.vaga-icon {
+    font-size: 1.6rem;
+    margin-bottom: 4px;
+}
+.vaga-titulo {
+    font-weight: bold;
+    font-size: 0.75rem;
+    color: #facc15;
+}
+.vaga-desc {
+    font-size: 0.6rem;
+    color: #94a3b8;
+}
+.dia-selecionado-info {
+    background: #0f172a;
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    text-align: center;
+    border-left: 4px solid #facc15;
+}
+.dia-selecionado-data {
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: #facc15;
+}
+.dia-selecionado-culto {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-top: 4px;
+}
+.dia-horarios {
+    font-size: 0.7rem;
+    color: #86efac;
+    margin-top: 6px;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.horario-item {
+    background: #1e293b;
+    padding: 3px 8px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.65rem;
+}
+.horario-item.selected {
+    background: #22c55e;
+    color: white;
+}
+.filtro-data {
+    background: #0f172a;
+    padding: 8px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+}
+.datas-disponiveis {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+}
+.data-filtro-btn {
+    background: #1e293b;
+    border: 1px solid #334155;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.65rem;
+    cursor: pointer;
+}
+.data-filtro-btn:hover {
+    background: #22c55e20;
+    border-color: #22c55e;
+}
+.data-filtro-btn.ativo {
+    background: #22c55e;
+    border-color: #22c55e;
+}
+input, select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    margin-top: 8px;
+    background: #0f172a;
+    color: white;
+    font-size: 14px;
+    box-sizing: border-box;
+    border: 1px solid #334155;
+}
+input:focus, select:focus {
+    outline: 2px solid #22c55e;
+}
+button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 12px;
+    background: #22c55e;
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+button:hover {
+    background: #16a34a;
+    transform: scale(0.98);
+}
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+.lista-voluntarios {
+    max-height: 500px;
+    overflow-y: auto;
+}
+.item {
+    background: #0f172a;
+    padding: 12px;
+    margin-top: 8px;
+    border-radius: 10px;
+    border-left: 4px solid #22c55e;
+    transition: all 0.2s;
+}
+.item:hover {
+    transform: translateX(5px);
+    background: #1e293b;
+}
+.item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.item-nome {
+    font-weight: bold;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.item-cargo {
+    font-size: 0.7rem;
+    background: #facc1520;
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    color: #fde047;
+    font-weight: bold;
+}
+.item-culto-data {
+    font-size: 0.65rem;
+    background: #22c55e20;
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    color: #86efac;
+    margin-top: 4px;
+}
+.item-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+.btn-acao {
+    padding: 4px 12px;
+    font-size: 10px;
+    width: auto;
+    margin: 0;
+    border-radius: 20px;
+}
+.btn-editar-acao {
+    background: #3b82f6;
+}
+.btn-editar-acao:hover {
+    background: #2563eb;
+}
+.btn-excluir-acao {
+    background: #ef4444;
+}
+.btn-excluir-acao:hover {
+    background: #dc2626;
+}
+.filtro-buttons {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+.filtro-btn {
+    background: #0f172a;
+    border: 1px solid #334155;
+    padding: 5px 12px;
+    border-radius: 30px;
+    font-size: 0.7rem;
+    width: auto;
+    margin: 0;
+    cursor: pointer;
+}
+.filtro-btn.ativo {
+    background: #22c55e;
+    border-color: #22c55e;
+}
+.status-bar {
+    background: #0f172a;
+    padding: 6px 10px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    font-size: 0.7rem;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+.status-online { color: #22c55e; }
+.status-offline { color: #facc15; }
+.empty-state {
+    text-align: center;
+    padding: 25px;
+    color: #94a3b8;
+    font-style: italic;
+    font-size: 0.85rem;
+}
+.toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e293b;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 30px;
+    font-size: 0.75rem;
+    z-index: 1000;
+    animation: fadeOut 2.5s ease forwards;
+    border-left: 3px solid #22c55e;
+    max-width: 90%;
+    text-align: center;
+}
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+.modal-content {
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 450px;
+    border: 1px solid #22c55e;
+}
+.modal-content h4 {
+    margin-bottom: 15px;
+    color: #facc15;
+}
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+.modal-buttons button {
+    flex: 1;
+    margin: 0;
+}
+@keyframes fadeOut {
+    0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+    15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    85% { opacity: 1; }
+    100% { opacity: 0; visibility: hidden; }
+}
+footer, .footer-bottom {
+    text-align: center;
+    font-size: 0.6rem;
+    margin-top: 12px;
+    color: #475569;
+}
+@media (max-width: 550px) {
+    .container { padding: 8px; }
+    .card { padding: 10px; margin-bottom: 10px; }
+    .card h3 { font-size: 14px; margin-bottom: 8px; }
+    .vagas-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .vaga-icon { font-size: 1.3rem; }
+    .vaga-titulo { font-size: 0.7rem; }
+    .dia-calendario { min-height: 50px; padding: 4px 1px; }
+    .dia-numero { font-size: 0.8rem; }
+    .dia-culto { font-size: 0.45rem; padding: 1px 2px; white-space: normal; }
+    .dias-semana span { font-size: 0.6rem; }
+    .item-header { flex-direction: column; align-items: flex-start; }
+    .header-buttons { top: 60px; right: 10px; }
+    .user-info { top: 60px; left: 10px; font-size: 9px; }
+    .item-actions { width: 100%; justify-content: flex-end; }
+}
+</style>
+</head>
+<body>
+
+<header>📅 Voluntários Para Servir | Igreja da Criança PIBV</header>
+
+<div class="header-buttons">
+    <div id="btnAdminContainer" style="display: none;">
+        <button class="btn-header btn-admin" onclick="window.location.href='admin.html'">👑 Admin</button>
+    </div>
+    <button class="btn-header btn-logout" onclick="logout()">🚪 Sair</button>
+</div>
+<div class="user-info" id="userInfoDisplay"></div>
+
+<div class="container">
+    <div class="versiculo-topo">
+        🌿 "Cada um sirva conforme o dom que recebeu" - 1 Pedro 4:10
+    </div>
+
+    <div class="card">
+        <h3>📆 Selecione o dia do culto</h3>
+        <div class="calendario-header">
+            <button class="nav-mes" onclick="mudarMes(-1)">◀ Mês anterior</button>
+            <span class="mes-ano" id="mesAno"></span>
+            <button class="nav-mes" onclick="mudarMes(1)">Próximo mês ▶</button>
+        </div>
+        <div class="dias-semana">
+            <span>D</span><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span>
+        </div>
+        <div class="calendario-grid" id="calendarioGrid"></div>
+    </div>
+
+    <div class="card" id="infoDiaCard" style="display: none;">
+        <div class="dia-selecionado-info">
+            <div class="dia-selecionado-data" id="diaSelecionadoData"></div>
+            <div class="dia-selecionado-culto" id="diaSelecionadoCulto"></div>
+            <div class="dia-horarios" id="diaHorarios"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>🎯 Escolha sua função para este dia</h3>
+        <div class="vagas-grid" id="vagas"></div>
+        <div id="vagaInfo" style="margin-top: 10px; font-size: 11px;"></div>
+    </div>
+
+    <div class="card">
+        <h3>✍️ Sua candidatura</h3>
+        <div id="vagaSelecionadaDiv" style="display: none;">
+            <div style="background:#0f172a;padding:8px;border-radius:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+                <span style="font-size:12px;">📌 Função: <strong id="vagaSelecionadaNome" style="color:#22c55e;"></strong></span>
+                <button class="limpar-btn" onclick="limparVaga()" style="background:#ef4444;border:none;padding:4px 10px;border-radius:20px;color:white;cursor:pointer;font-size:11px;">✖ Trocar</button>
+            </div>
+        </div>
+        
+        <div style="background:#0f172a;padding:10px;border-radius:8px;margin-top:8px;">
+            <span style="color:#86efac;">👤 Seu nome: </span>
+            <strong id="nomeUsuarioDisplay" style="color:#facc15;"></strong>
+        </div>
+        
+        <div id="adminSelectContainer" style="display: none; margin-top: 10px;">
+            <label style="font-size:12px; color:#facc15;">👑 Admin: Selecione o membro</label>
+            <select id="membroSelect" style="width:100%; padding:10px; margin-top:5px; border-radius:8px; background:#0f172a; color:white; border:1px solid #334155;">
+                <option value="">-- Selecione um membro --</option>
+            </select>
+        </div>
+        
+        <button onclick="salvar()">📌 Candidatar-se para este culto</button>
+    </div>
+
+    <div class="card">
+        <h3>🙌 Agendamentos</h3>
+        <div class="status-bar">
+            <span>📡 Status: <span id="statusTexto">Online</span></span>
+            <span id="contadorVoluntarios">0 voluntários</span>
+        </div>
+        <div class="filtro-data">
+            <div style="font-size: 0.7rem; margin-bottom: 6px;">📅 Filtrar por data:</div>
+            <div class="datas-disponiveis" id="datasDisponiveis"></div>
+        </div>
+        <div class="filtro-buttons">
+            <button class="filtro-btn ativo" data-filtro="todos">📋 Todos</button>
+            <button class="filtro-btn" data-filtro="Domingo">🙏 Domingo</button>
+            <button class="filtro-btn" data-filtro="Quarta">🙏 Quarta</button>
+        </div>
+        <div id="lista" class="lista-voluntarios">
+            <div class="empty-state">⏳ Carregando...</div>
+        </div>
+        <div class="refresh-note" style="text-align:center; font-size:0.6rem; margin-top:8px; color:#5b6e8c;">🔄 Atualização em tempo real</div>
+    </div>
+    
+    <footer class="footer-bottom">
+        🌿 "Cada um sirva conforme o dom que recebeu" - 1 Pedro 4:10
+    </footer>
+</div>
+
+<div id="modalEditar" class="modal">
+    <div class="modal-content">
+        <h4>✏️ Editar Agendamento</h4>
+        <select id="editarCulto" style="width:100%; padding:10px; margin:8px 0; border-radius:8px; background:#0f172a; color:white; border:1px solid #334155;">
+            <option value="Domingo - EBD 09:00">📖 Domingo - EBD 09h</option>
+            <option value="Domingo - Culto 19:30">🙏 Domingo - Culto 19h30</option>
+            <option value="Quarta - Culto 19:00">🙏 Quarta - Culto 19h</option>
+        </select>
+        <select id="editarVaga" style="width:100%; padding:10px; margin:8px 0; border-radius:8px; background:#0f172a; color:white; border:1px solid #334155;">
+            <option value="Preletor">🎙️ Preletor</option>
+            <option value="Dirigente">🎤 Dirigente</option>
+            <option value="Louvor">🎸 Louvor</option>
+            <option value="Mídia">📡 Mídia</option>
+            <option value="recepção">🤝 Acolhimento</option>
+            <option value="Lanche">🍪 Lanche</option>
+            <option value="EBD">📖 EBD</option>
+            <option value="Kids">🧒 Kids</option>
+        </select>
+        <div class="modal-buttons">
+            <button onclick="salvarEdicao()" style="background:#22c55e;">💾 Salvar</button>
+            <button onclick="fecharModalEdicao()" style="background:#ef4444;">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ==================== CONFIGURAÇÃO DO FIREBASE ====================
+const firebaseConfig = {
+    apiKey: "AIzaSyDSsIYqwWIPlxhiJnw0q_YnXCwOW2uNcqU",
+    authDomain: "appigreja-3cffa.firebaseapp.com",
+    projectId: "appigreja-3cffa",
+    storageBucket: "appigreja-3cffa.firebasestorage.app",
+    messagingSenderId: "984798074954",
+    appId: "1:984798074954:web:44bceded9219b1e4242eb3"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+const EMAIL_ADMIN = "jairovilatur@gmail.com";
+const EMAILS_PADRAO = ["jairovilatur@gmail.com", "kelly@gmail.com", "maria@gmail.com", "joao@gmail.com"];
+
+function isEmailPermitido(email) {
+    const salvos = JSON.parse(localStorage.getItem("emails_autorizados")) || [];
+    if (salvos.includes(email)) return true;
+    if (EMAILS_PADRAO.includes(email)) return true;
+    return false;
+}
+
+// ==================== VERIFICAÇÃO DE LOGIN ====================
+auth.onAuthStateChanged((user) => {
+    if (!user) {
+        window.location.href = "login.html";
+    } else if (!isEmailPermitido(user.email)) {
+        alert("❌ Este e-mail não tem permissão!");
+        auth.signOut();
+        window.location.href = "login.html";
+    }
+});
+
+let usuarioEmail = sessionStorage.getItem("usuarioEmail");
+let usuarioNomeCompleto = sessionStorage.getItem("usuarioNome");
+let usuarioRole = sessionStorage.getItem("usuarioRole");
+
+if ((!usuarioEmail || !usuarioRole) && auth.currentUser) {
+    usuarioEmail = auth.currentUser.email;
+    usuarioNomeCompleto = auth.currentUser.displayName || "Usuário";
+    usuarioRole = (usuarioEmail === EMAIL_ADMIN) ? "admin" : "user";
+    sessionStorage.setItem("usuarioEmail", usuarioEmail);
+    sessionStorage.setItem("usuarioNome", usuarioNomeCompleto);
+    sessionStorage.setItem("usuarioRole", usuarioRole);
+    sessionStorage.setItem("logado", "true");
+}
+
+document.getElementById("userInfoDisplay").innerHTML = `
+    ${auth.currentUser?.photoURL ? `<img class="user-avatar" src="${auth.currentUser.photoURL}">` : '👤'}
+    <span>${usuarioNomeCompleto} ${usuarioRole === 'admin' ? '👑' : ''}</span>
+`;
+document.getElementById("nomeUsuarioDisplay").innerHTML = usuarioNomeCompleto;
+
+if (usuarioRole === "admin") {
+    document.getElementById("btnAdminContainer").style.display = "block";
+    document.getElementById("adminSelectContainer").style.display = "block";
+    carregarMembrosSelect();
+}
+
+function logout() {
+    auth.signOut().then(() => {
+        sessionStorage.clear();
+        window.location.href = "login.html";
+    });
+}
+
+function carregarMembrosSelect() {
+    const membros = JSON.parse(localStorage.getItem("membros_lista")) || [];
+    const select = document.getElementById("membroSelect");
+    if (select) {
+        select.innerHTML = '<option value="">-- Selecione um membro --</option>';
+        membros.forEach(membro => select.innerHTML += `<option value="${membro}">👤 ${membro}</option>`);
+    }
+}
+
+// ==================== FUNÇÕES DO FIRESTORE ====================
+let voluntarios = [];
+let todasDatas = new Set();
+
+async function carregarAgendamentos() {
+    try {
+        const snapshot = await db.collection("agendamentos").orderBy("timestamp", "desc").get();
+        voluntarios = [];
+        todasDatas.clear();
+        
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            voluntarios.push({
+                id: doc.id,
+                data: data.data || "",
+                nome: data.nome || "Anônimo",
+                culto: data.culto || "Domingo",
+                vaga: data.vaga || "Voluntário"
+            });
+            if (data.data && data.data.trim() !== "") todasDatas.add(data.data);
+        });
+        
+        renderizarFiltrosData();
+        aplicarFiltro();
+        document.getElementById("statusTexto").innerHTML = "🟢 Online";
+        document.getElementById("contadorVoluntarios").innerHTML = `${voluntarios.length} voluntários`;
+    } catch (error) {
+        console.error("Erro ao carregar:", error);
+        document.getElementById("statusTexto").innerHTML = "🔴 Offline";
+    }
+}
+
+async function salvarAgendamento(dados) {
+    try {
+        await db.collection("agendamentos").add({
+            ...dados,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            usuarioEmail: usuarioEmail
+        });
+        return true;
+    } catch (error) {
+        console.error("Erro ao salvar:", error);
+        return false;
+    }
+}
+
+async function editarAgendamento(id, culto, vaga) {
+    try {
+        await db.collection("agendamentos").doc(id).update({
+            culto: culto,
+            vaga: vaga
+        });
+        return true;
+    } catch (error) {
+        console.error("Erro ao editar:", error);
+        return false;
+    }
+}
+
+async function excluirAgendamento(id) {
+    try {
+        await db.collection("agendamentos").doc(id).delete();
+        return true;
+    } catch (error) {
+        console.error("Erro ao excluir:", error);
+        return false;
+    }
+}
+
+// ==================== FUNÇÕES DO CALENDÁRIO ====================
+let dataAtual = new Date();
+let diaSelecionado = null;
+let cultoSelecionado = null;
+let horarioSelecionado = null;
+let dataSelecionada = null;
+let filtroAtual = "todos";
+let filtroDataEspecifica = null;
+
+const horariosPorCulto = {
+    "Domingo": [
+        { value: "EBD 09:00", label: "📖 EBD 09h" },
+        { value: "Culto 19:30", label: "🙏 Culto 19h30" }
+    ],
+    "Quarta": [
+        { value: "Culto 19:00", label: "🙏 Culto 19h" }
+    ]
+};
+
+const vagas = [
+    { id: "preletor", titulo: "Preletor", icone: "🎙️", descricao: "Ministração" },
+    { id: "dirigente", titulo: "Dirigente", icone: "🎤", descricao: "Dirigir" },
+    { id: "louvor", titulo: "Louvor", icone: "🎸", descricao: "Música" },
+    { id: "midia", titulo: "Mídia", icone: "📡", descricao: "Streaming" },
+    { id: "recepcao", titulo: "recepção", icone: "🤝", descricao: "Acolhimento" },
+    { id: "lanche", titulo: "Lanche", icone: "🍪", descricao: "Preparo" },
+    { id: "ebd", titulo: "EBD", icone: "📖", descricao: "Professor" },
+    { id: "kids", titulo: "Kids", icone: "🧒", descricao: "Crianças" }
+];
+
+let vagaSelecionada = null;
+
+function formatarDataSemTZ(data) {
+    const dia = data.getDate().toString().padStart(2, '0');
+    const mes = (data.getMonth() + 1).toString().padStart(2, '0');
+    const ano = data.getFullYear();
+    return `${dia}/${mes}/${ano}`;
+}
+
+function isDiaDeCulto(data) {
+    const diaSemana = data.getDay();
+    return diaSemana === 0 || diaSemana === 3;
+}
+
+function getTipoCulto(data) {
+    const diaSemana = data.getDay();
+    if (diaSemana === 0) return "Domingo";
+    if (diaSemana === 3) return "Quarta";
+    return null;
+}
+
+function renderCalendario() {
+    const ano = dataAtual.getFullYear();
+    const mes = dataAtual.getMonth();
+    const primeiroDia = new Date(ano, mes, 1);
+    const ultimoDia = new Date(ano, mes + 1, 0);
+    const diasNoMes = ultimoDia.getDate();
+    const diaInicioSemana = primeiroDia.getDay();
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    
+    let html = "";
+    const diasMesAnterior = diaInicioSemana;
+    for (let i = diasMesAnterior - 1; i >= 0; i--) html += `<div class="dia-calendario outro-mes"></div>`;
+    
+    for (let d = 1; d <= diasNoMes; d++) {
+        const dataDia = new Date(ano, mes, d);
+        const tipoCulto = getTipoCulto(dataDia);
+        const isSelected = diaSelecionado && formatarDataSemTZ(dataDia) === formatarDataSemTZ(diaSelecionado);
+        const isHoje = formatarDataSemTZ(dataDia) === formatarDataSemTZ(hoje);
+        
+        let cultoHtml = "";
+        if (tipoCulto === "Domingo") {
+            cultoHtml = `<span class="dia-culto domingo-ebd">📖EBD 09h</span><span class="dia-culto domingo-culto">🙏Culto 19h30</span>`;
+        } else if (tipoCulto === "Quarta") {
+            cultoHtml = `<span class="dia-culto quarta">🙏Culto 19h</span>`;
+        } else {
+            cultoHtml = `<span class="dia-sem-culto">⚫</span>`;
+        }
+        
+        html += `<div class="dia-calendario ${isSelected ? 'selected' : ''}" onclick="selecionarDia(${ano}, ${mes}, ${d})">
+            <div class="dia-numero" style="${isHoje ? 'color:#22c55e;' : ''}">${d}</div>
+            ${cultoHtml}
+        </div>`;
+    }
+    
+    const totalDias = diasMesAnterior + diasNoMes;
+    const diasProximoMes = 42 - totalDias;
+    for (let i = 1; i <= diasProximoMes; i++) html += `<div class="dia-calendario outro-mes">${i}</div>`;
+    
+    document.getElementById("calendarioGrid").innerHTML = html;
+    const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    document.getElementById("mesAno").innerHTML = `${meses[mes]} ${ano}`;
+}
+
+function mudarMes(delta) {
+    dataAtual.setMonth(dataAtual.getMonth() + delta);
+    renderCalendario();
+}
+
+function selecionarDia(ano, mes, dia) {
+    diaSelecionado = new Date(ano, mes, dia);
+    cultoSelecionado = getTipoCulto(diaSelecionado);
+    dataSelecionada = formatarDataSemTZ(diaSelecionado);
+    horarioSelecionado = null;
+    
+    if (!cultoSelecionado) {
+        showToast("⚠️ Este dia não tem culto", "erro");
+        diaSelecionado = null;
+        cultoSelecionado = null;
+        document.getElementById("infoDiaCard").style.display = "none";
+        return;
+    }
+    
+    renderCalendario();
+    const horarios = horariosPorCulto[cultoSelecionado];
+    let horariosHtml = "";
+    horarios.forEach(h => {
+        const isSelected = horarioSelecionado === h.value;
+        horariosHtml += `<div class="horario-item ${isSelected ? 'selected' : ''}" onclick="selecionarHorario('${h.value}')">${h.label}</div>`;
+    });
+    
+    document.getElementById("infoDiaCard").style.display = "block";
+    document.getElementById("diaSelecionadoData").innerHTML = `📅 ${dataSelecionada}`;
+    document.getElementById("diaSelecionadoCulto").innerHTML = `📍 ${cultoSelecionado}`;
+    document.getElementById("diaHorarios").innerHTML = horariosHtml;
+    showToast(`✅ ${cultoSelecionado} selecionado!`, "sucesso");
+}
+
+function selecionarHorario(horario) {
+    horarioSelecionado = horario;
+    const horarios = horariosPorCulto[cultoSelecionado];
+    let horariosHtml = "";
+    horarios.forEach(h => {
+        horariosHtml += `<div class="horario-item ${horarioSelecionado === h.value ? 'selected' : ''}" onclick="selecionarHorario('${h.value}')">${h.label}</div>`;
+    });
+    document.getElementById("diaHorarios").innerHTML = horariosHtml;
+    showToast(`⏰ Horário: ${horario}`, "sucesso");
+}
+
+function renderVagas() {
+    let html = "";
+    vagas.forEach(v => {
+        const isSelected = vagaSelecionada === v.titulo;
+        html += `<div class="vaga-card ${isSelected ? 'selected' : ''}" onclick="selecionarVaga('${v.titulo}')">
+            <div class="vaga-icon">${v.icone}</div>
+            <div class="vaga-titulo">${v.titulo}</div>
+            <div class="vaga-desc">${v.descricao}</div>
+        </div>`;
+    });
+    document.getElementById("vagas").innerHTML = html;
+}
+
+function selecionarVaga(titulo) {
+    vagaSelecionada = titulo;
+    renderVagas();
+    document.getElementById("vagaSelecionadaDiv").style.display = "block";
+    document.getElementById("vagaSelecionadaNome").innerHTML = titulo;
+    document.getElementById("vagaInfo").innerHTML = `✅ Função: <strong style="color:#22c55e">${titulo}</strong>`;
+}
+
+function limparVaga() {
+    vagaSelecionada = null;
+    renderVagas();
+    document.getElementById("vagaSelecionadaDiv").style.display = "none";
+    document.getElementById("vagaInfo").innerHTML = "⚠️ Clique em uma função";
+}
+
+async function salvar() {
+    let nome;
+    const isAdmin = (usuarioRole === "admin");
+    const membroSelect = document.getElementById("membroSelect");
+    const membroSelecionado = membroSelect?.value || "";
+    
+    if (isAdmin && membroSelecionado !== "") {
+        nome = membroSelecionado;
+    } else {
+        nome = usuarioNomeCompleto;
+    }
+    
+    if (!diaSelecionado || !cultoSelecionado) { showToast("❌ Selecione um dia", "erro"); return; }
+    if (!horarioSelecionado) { showToast("❌ Selecione o horário", "erro"); return; }
+    if (!vagaSelecionada) { showToast("❌ Escolha uma função", "erro"); return; }
+    
+    const btn = document.querySelector("button[onclick='salvar()']");
+    btn.disabled = true;
+    btn.textContent = "⏳ Enviando...";
+    
+    const cultoCompleto = `${cultoSelecionado} - ${horarioSelecionado}`;
+    const sucesso = await salvarAgendamento({
+        data: dataSelecionada,
+        nome: nome,
+        culto: cultoCompleto,
+        vaga: vagaSelecionada
+    });
+    
+    if (sucesso) {
+        if (membroSelect) membroSelect.value = "";
+        limparVaga();
+        horarioSelecionado = null;
+        carregarAgendamentos();
+        showToast(`✅ ${nome} inscrito(a)!`, "sucesso");
+    } else {
+        showToast("⚠️ Erro ao salvar", "erro");
+    }
+    
+    btn.disabled = false;
+    btn.textContent = "📌 Candidatar-se";
+}
+
+function renderizarFiltrosData() {
+    const container = document.getElementById("datasDisponiveis");
+    let html = `<div class="data-filtro-btn ${filtroDataEspecifica === null ? 'ativo' : ''}" onclick="filtrarPorData(null)">📅 Todas</div>`;
+    const datasOrdenadas = Array.from(todasDatas).sort((a, b) => {
+        const [diaA, mesA, anoA] = a.split('/');
+        const [diaB, mesB, anoB] = b.split('/');
+        return new Date(anoA, mesA-1, diaA) - new Date(anoB, mesB-1, diaB);
+    });
+    datasOrdenadas.forEach(data => {
+        const count = voluntarios.filter(v => v.data === data).length;
+        html += `<div class="data-filtro-btn ${filtroDataEspecifica === data ? 'ativo' : ''}" onclick="filtrarPorData('${data}')">📅 ${data} (${count})</div>`;
+    });
+    container.innerHTML = html;
+}
+
+function filtrarPorData(data) {
+    filtroDataEspecifica = data;
+    renderizarFiltrosData();
+    aplicarFiltro();
+}
+
+function getIconePorVaga(vaga) {
+    if (!vaga || vaga === "Voluntário") return "🙌";
+    if (vaga.includes("Preletor")) return "🎙️";
+    if (vaga.includes("Dirigente")) return "🎤";
+    if (vaga.includes("Louvor")) return "🎸";
+    if (vaga.includes("Mídia")) return "📡";
+    if (vaga.includes("recepção")) return "🤝";
+    if (vaga.includes("Lanche")) return "🍪";
+    if (vaga.includes("EBD")) return "📖";
+    if (vaga.includes("Kids")) return "🧒";
+    return "🙌";
+}
+
+function aplicarFiltro() {
+    let filtrados = voluntarios;
+    if (filtroAtual !== "todos") {
+        filtrados = filtrados.filter(v => v.culto && v.culto.includes(filtroAtual));
+    }
+    if (filtroDataEspecifica !== null) {
+        filtrados = filtrados.filter(v => v.data === filtroDataEspecifica);
+    }
+    renderizarLista(filtrados);
+}
+
+function renderizarLista(lista) {
+    let html = "";
+    if (!lista || lista.length === 0) {
+        html = '<div class="empty-state">✨ Nenhum agendamento encontrado</div>';
+    } else {
+        lista.slice().reverse().forEach(v => {
+            const vagaIcon = getIconePorVaga(v.vaga);
+            const dataExibida = v.data ? `📅 ${v.data}` : "⚠️ Sem data";
+            const podeEditar = podeEditarExcluir(v.data);
+            const isOwn = (v.nome === usuarioNomeCompleto);
+            const isAdmin = (usuarioRole === "admin");
+            const mostrarBotoes = (isOwn || isAdmin);
+            const desabilitado = (!podeEditar && !isAdmin);
+            
+            let botoesHtml = "";
+            if (mostrarBotoes) {
+                botoesHtml = `<div class="item-actions">
+                    <button class="btn-acao btn-editar-acao" onclick='abrirModalEdicao("${v.id}", "${v.culto}", "${v.vaga}")' ${desabilitado ? 'disabled' : ''}>✏️ Editar</button>
+                    <button class="btn-acao btn-excluir-acao" onclick="excluirAgendamento('${v.id}', '${v.nome}', '${v.data}')" ${desabilitado ? 'disabled' : ''}>🗑️ Excluir</button>
+                </div>`;
+            }
+            
+            html += `<div class="item">
+                <div class="item-header">
+                    <div class="item-nome">👤 ${escapeHtml(v.nome)}${!podeEditar && !isAdmin && isOwn ? '<span style="font-size:9px; color:#facc15;"> ⚠️ Prazo encerrado</span>' : ''}</div>
+                    <div class="item-cargo">${vagaIcon} ${escapeHtml(v.vaga)}</div>
+                </div>
+                <div class="item-culto-data">${escapeHtml(v.culto)} ${dataExibida}</div>
+                ${botoesHtml}
+            </div>`;
+        });
+    }
+    document.getElementById("lista").innerHTML = html;
+}
+
+function podeEditarExcluir(dataStr) {
+    if (!dataStr) return false;
+    let dataEvento;
+    if (dataStr.includes('T') && dataStr.includes('Z')) {
+        dataEvento = new Date(dataStr);
+    } else {
+        const partes = dataStr.split('/');
+        if (partes.length !== 3) return false;
+        dataEvento = new Date(partes[2], partes[1] - 1, partes[0]);
+    }
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    dataEvento.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((dataEvento - hoje) / (1000 * 60 * 60 * 24));
+    return diffDays >= 2;
+}
+
+let itemEditandoId = null;
+
+function abrirModalEdicao(id, culto, vaga) {
+    itemEditandoId = id;
+    document.getElementById("editarCulto").value = culto;
+    document.getElementById("editarVaga").value = vaga;
+    document.getElementById("modalEditar").style.display = "flex";
+}
+
+function fecharModalEdicao() {
+    document.getElementById("modalEditar").style.display = "none";
+    itemEditandoId = null;
+}
+
+async function salvarEdicao() {
+    if (!itemEditandoId) return;
+    const novoCulto = document.getElementById("editarCulto").value;
+    const novaVaga = document.getElementById("editarVaga").value;
+    const sucesso = await editarAgendamento(itemEditandoId, novoCulto, novaVaga);
+    if (sucesso) {
+        showToast("✅ Agendamento alterado!", "sucesso");
+        fecharModalEdicao();
+        carregarAgendamentos();
+    } else {
+        showToast("⚠️ Erro ao editar", "erro");
+    }
+}
+
+async function excluirAgendamento(id, nomePessoa, dataEvento) {
+    const isOwn = (nomePessoa === usuarioNomeCompleto);
+    const isAdmin = (usuarioRole === "admin");
+    if (!isOwn && !isAdmin) { showToast("❌ Só pode excluir seus agendamentos!", "erro"); return; }
+    if (!podeEditarExcluir(dataEvento) && !isAdmin) { showToast("❌ Prazo encerrado!", "erro"); return; }
+    if (confirm("Cancelar este agendamento?")) {
+        const sucesso = await excluirAgendamento(id);
+        if (sucesso) {
+            showToast("✅ Agendamento cancelado!", "sucesso");
+            carregarAgendamentos();
+        } else {
+            showToast("⚠️ Erro ao excluir", "erro");
+        }
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return "";
+    return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
+}
+
+function showToast(msg, tipo) {
+    let toast = document.querySelector(".toast");
+    if (toast) toast.remove();
+    toast = document.createElement("div");
+    toast.className = "toast";
+    toast.style.borderLeftColor = tipo === "erro" ? "#ef4444" : "#22c55e";
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2500);
+}
+
+function configurarFiltros() {
+    document.querySelectorAll(".filtro-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".filtro-btn").forEach(b => b.classList.remove("ativo"));
+            btn.classList.add("ativo");
+            filtroAtual = btn.dataset.filtro;
+            aplicarFiltro();
+        });
+    });
+}
+
+// ==================== INICIALIZAÇÃO ====================
+renderCalendario();
+renderVagas();
+carregarAgendamentos();
+configurarFiltros();
+
+window.onclick = function(event) {
+    if (event.target === document.getElementById("modalEditar")) fecharModalEdicao();
+}
+</script>
+
+</body>
+</html>
