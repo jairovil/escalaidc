@@ -10,6 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
 <style>
+/* TODO O SEU CSS ATUAL (mantenha exatamente como está) */
 * {
     margin: 0;
     padding: 0;
@@ -713,10 +714,10 @@ function carregarMembrosSelect() {
 
 // ==================== FUNÇÕES DO FIRESTORE ====================
 let voluntarios = [];
-let todasDatas = new Set();
+let todasDatas = new Set();      // todas as datas de todos os agendamentos (sem filtro)
 let unsubscribe = null;
-let funcoesSelecionadas = new Set(); // Set para armazenar funções selecionadas
-let funcoesJaInscritas = new Set(); // Set para armazenar funções que o usuário já está inscrito
+let funcoesSelecionadas = new Set();
+let funcoesJaInscritas = new Set();
 
 function carregarAgendamentos() {
     if (unsubscribe) unsubscribe();
@@ -738,12 +739,11 @@ function carregarAgendamentos() {
             if (data.data && data.data.trim() !== "") todasDatas.add(data.data);
         });
         
-        renderizarFiltrosData();
+        renderizarFiltrosData();  // agora filtra apenas as datas do mês atual
         aplicarFiltro();
         document.getElementById("statusTexto").innerHTML = "🟢 Online";
         document.getElementById("contadorVoluntarios").innerHTML = `${voluntarios.length} voluntários`;
         
-        // Atualizar contadores e verificar inscrições do usuário
         if (dataSelecionada && horarioSelecionado) {
             atualizarContadoresVagas();
             verificarInscricoesDoUsuario();
@@ -754,23 +754,59 @@ function carregarAgendamentos() {
     });
 }
 
-// Verificar em quais funções o usuário já está inscrito para o dia/horário atual
+// ----- FUNÇÃO AUXILIAR: filtra as datas que pertencem ao mês/ano atuais -----
+function obterDatasDoMesAtual() {
+    const ano = dataAtual.getFullYear();
+    const mes = dataAtual.getMonth();
+    const datasFiltradas = [];
+    
+    for (let dataStr of todasDatas) {
+        // formato DD/MM/AAAA
+        const partes = dataStr.split('/');
+        if (partes.length === 3) {
+            const dia = parseInt(partes[0], 10);
+            const mesData = parseInt(partes[1], 10) - 1; // mês zero-index
+            const anoData = parseInt(partes[2], 10);
+            if (anoData === ano && mesData === mes) {
+                datasFiltradas.push(dataStr);
+            }
+        }
+    }
+    return datasFiltradas;
+}
+
+function renderizarFiltrosData() {
+    const container = document.getElementById("datasDisponiveis");
+    // Obtém as datas que pertencem ao mês atual
+    const datasDoMes = obterDatasDoMesAtual();
+    // Ordena as datas do mês atual
+    datasDoMes.sort((a, b) => {
+        const [diaA, mesA, anoA] = a.split('/');
+        const [diaB, mesB, anoB] = b.split('/');
+        return new Date(anoA, mesA-1, diaA) - new Date(anoB, mesB-1, diaB);
+    });
+    
+    let html = `<div class="data-filtro-btn ${filtroDataEspecifica === null ? 'ativo' : ''}" onclick="filtrarPorData(null)">📅 Todas</div>`;
+    
+    datasDoMes.forEach(data => {
+        const count = voluntarios.filter(v => v.data === data).length;
+        html += `<div class="data-filtro-btn ${filtroDataEspecifica === data ? 'ativo' : ''}" onclick="filtrarPorData('${data}')">📅 ${data} (${count})</div>`;
+    });
+    
+    container.innerHTML = html;
+}
+
 function verificarInscricoesDoUsuario() {
     funcoesJaInscritas.clear();
-    
     if (!dataSelecionada || !horarioSelecionado) return;
-    
     voluntarios.forEach(v => {
         if (v.data === dataSelecionada && v.culto === horarioSelecionado && v.nome === usuarioNome) {
             funcoesJaInscritas.add(v.vaga);
         }
     });
-    
-    // Atualizar visual das vagas
     renderVagas();
 }
 
-// Verificar se o usuário já está inscrito em uma função específica
 function usuarioJaInscritoNaFuncao(funcaoTitulo) {
     return funcoesJaInscritas.has(funcaoTitulo);
 }
@@ -791,10 +827,8 @@ async function salvarMultiplasFuncoes() {
     if (!horarioSelecionado) { showToast("❌ Selecione o horário", "erro"); return; }
     if (funcoesSelecionadas.size === 0) { showToast("❌ Escolha pelo menos uma função", "erro"); return; }
     
-    // Verificar se alguma função já está inscrita
     const funcoesJaExistentes = [];
     const funcoesValidas = [];
-    
     funcoesSelecionadas.forEach(funcao => {
         if (usuarioJaInscritoNaFuncao(funcao)) {
             funcoesJaExistentes.push(funcao);
@@ -807,7 +841,6 @@ async function salvarMultiplasFuncoes() {
         showToast(`❌ Você já está inscrito(a) em: ${funcoesJaExistentes.join(", ")}`, "erro");
         return;
     }
-    
     if (funcoesValidas.length === 0) {
         showToast("❌ Nenhuma função válida para inscrição", "erro");
         return;
@@ -818,7 +851,6 @@ async function salvarMultiplasFuncoes() {
     btn.textContent = "⏳ Enviando...";
     
     let sucesso = true;
-    
     for (const vaga of funcoesValidas) {
         try {
             await db.collection("agendamentos").add({
@@ -839,7 +871,6 @@ async function salvarMultiplasFuncoes() {
         limparTodasFuncoes();
         if (membroSelect) membroSelect.value = "";
         showToast(`✅ ${nome} inscrito(a) em ${funcoesValidas.length} função(ões)!`, "sucesso");
-        // Aguardar o snapshot atualizar
         setTimeout(() => {
             verificarInscricoesDoUsuario();
             atualizarContadoresVagas();
@@ -865,32 +896,23 @@ async function excluirAgendamento(id) {
 // ==================== FUNÇÃO PARA CONTAR INSCRITOS POR VAGA ====================
 function contarInscritosPorVaga(data, horario) {
     const contagem = {};
-    
     voluntarios.forEach(v => {
         if (v.data === data && v.culto === horario) {
-            const vaga = v.vaga;
-            contagem[vaga] = (contagem[vaga] || 0) + 1;
+            contagem[v.vaga] = (contagem[v.vaga] || 0) + 1;
         }
     });
-    
     return contagem;
 }
 
 function atualizarContadoresVagas() {
     if (!dataSelecionada || !horarioSelecionado) return;
-    
     const contagem = contarInscritosPorVaga(dataSelecionada, horarioSelecionado);
-    
     document.querySelectorAll('.vaga-card').forEach(card => {
         const titulo = card.querySelector('.vaga-titulo')?.innerText;
         if (titulo) {
             const count = contagem[titulo] || 0;
-            
-            // Remove contador antigo
             const oldCounter = card.querySelector('.vaga-contador');
             if (oldCounter) oldCounter.remove();
-            
-            // Adiciona novo contador
             const counter = document.createElement('div');
             counter.className = 'vaga-contador';
             counter.textContent = count;
@@ -902,18 +924,15 @@ function atualizarContadoresVagas() {
 
 // ==================== FUNÇÕES DE SELEÇÃO MÚLTIPLA ====================
 function toggleFuncao(titulo) {
-    // Verificar se o usuário já está inscrito nesta função
     if (usuarioJaInscritoNaFuncao(titulo)) {
         showToast(`⚠️ Você já está inscrito(a) em ${titulo} para este dia/horário!`, "erro");
         return;
     }
-    
     if (funcoesSelecionadas.has(titulo)) {
         funcoesSelecionadas.delete(titulo);
     } else {
         funcoesSelecionadas.add(titulo);
     }
-    
     renderVagas();
     atualizarListaFuncoesSelecionadas();
 }
@@ -927,14 +946,11 @@ function limparTodasFuncoes() {
 function atualizarListaFuncoesSelecionadas() {
     const container = document.getElementById("listaFuncoesSelecionadas");
     const divPai = document.getElementById("funcoesSelecionadasDiv");
-    
     if (funcoesSelecionadas.size === 0) {
         divPai.style.display = "none";
         return;
     }
-    
     divPai.style.display = "block";
-    
     let html = "";
     funcoesSelecionadas.forEach(funcao => {
         const vaga = vagas.find(v => v.titulo === funcao);
@@ -1045,6 +1061,16 @@ function renderCalendario() {
 function mudarMes(delta) {
     dataAtual.setMonth(dataAtual.getMonth() + delta);
     renderCalendario();
+    // ATUALIZA OS BOTÕES DE DATA para o novo mês
+    renderizarFiltrosData();
+    // Se houver filtro de data específica que não pertence mais ao mês, remover
+    if (filtroDataEspecifica !== null) {
+        const datasDoMes = obterDatasDoMesAtual();
+        if (!datasDoMes.includes(filtroDataEspecifica)) {
+            filtrarPorData(null);
+        }
+    }
+    aplicarFiltro();
 }
 
 function selecionarDia(ano, mes, dia) {
@@ -1061,9 +1087,7 @@ function selecionarDia(ano, mes, dia) {
         return;
     }
     
-    // Limpar funções selecionadas ao mudar de dia
     limparTodasFuncoes();
-    
     renderCalendario();
     const horarios = horariosPorCulto[cultoSelecionado];
     let horariosHtml = "";
@@ -1087,16 +1111,11 @@ function selecionarHorario(horario) {
         horariosHtml += `<div class="horario-item ${horarioSelecionado === h.value ? 'selected' : ''}" onclick="selecionarHorario('${h.value}')">${h.label}</div>`;
     });
     document.getElementById("diaHorarios").innerHTML = horariosHtml;
-    
-    // Limpar funções selecionadas ao mudar de horário
     limparTodasFuncoes();
-    
-    // Verificar inscrições do usuário e atualizar contadores
     setTimeout(() => {
         verificarInscricoesDoUsuario();
         atualizarContadoresVagas();
     }, 100);
-    
     showToast(`⏰ Horário: ${horario}`, "sucesso");
 }
 
@@ -1117,25 +1136,9 @@ function renderVagas() {
         </div>`;
     });
     document.getElementById("vagas").innerHTML = html;
-    
     if (dataSelecionada && horarioSelecionado) {
         atualizarContadoresVagas();
     }
-}
-
-function renderizarFiltrosData() {
-    const container = document.getElementById("datasDisponiveis");
-    let html = `<div class="data-filtro-btn ${filtroDataEspecifica === null ? 'ativo' : ''}" onclick="filtrarPorData(null)">📅 Todas</div>`;
-    const datasOrdenadas = Array.from(todasDatas).sort((a, b) => {
-        const [diaA, mesA, anoA] = a.split('/');
-        const [diaB, mesB, anoB] = b.split('/');
-        return new Date(anoA, mesA-1, diaA) - new Date(anoB, mesB-1, diaB);
-    });
-    datasOrdenadas.forEach(data => {
-        const count = voluntarios.filter(v => v.data === data).length;
-        html += `<div class="data-filtro-btn ${filtroDataEspecifica === data ? 'ativo' : ''}" onclick="filtrarPorData('${data}')">📅 ${data} (${count})</div>`;
-    });
-    container.innerHTML = html;
 }
 
 function filtrarPorData(data) {
@@ -1220,17 +1223,14 @@ async function salvarEdicao() {
 async function excluirAgendamentoPorId(id, nomePessoa, dataEvento) {
     const isOwn = (nomePessoa === usuarioNome);
     const isAdmin = (usuarioRole === "admin");
-    
-    if (!isOwn && !isAdmin) { 
-        showToast("❌ Você só pode excluir seus próprios agendamentos!", "erro"); 
-        return; 
+    if (!isOwn && !isAdmin) {
+        showToast("❌ Você só pode excluir seus próprios agendamentos!", "erro");
+        return;
     }
-    
-    if (!podeEditarExcluir(dataEvento) && !isAdmin) { 
-        showToast(`❌ Prazo encerrado! Só é possível excluir com 2 dias de antecedência.`, "erro"); 
-        return; 
+    if (!podeEditarExcluir(dataEvento) && !isAdmin) {
+        showToast(`❌ Prazo encerrado! Só é possível excluir com 2 dias de antecedência.`, "erro");
+        return;
     }
-    
     if (confirm("Tem certeza que deseja cancelar este agendamento?")) {
         const sucesso = await excluirAgendamento(id);
         if (sucesso) {
