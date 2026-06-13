@@ -190,6 +190,7 @@
 </header>
 
 <div class="container">
+    <!-- CARD DE RELATÓRIOS -->
     <div class="card">
         <h3>📊 Gerar Relatório de Voluntários</h3>
         <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
@@ -266,16 +267,6 @@
 </div>
 
 <script>
-    // ==================== FUNÇÃO HASH ====================
-    function hashSenha(senha) {
-        let hash = 0;
-        for (let i = 0; i < senha.length; i++) {
-            hash = ((hash << 5) - hash) + senha.charCodeAt(i);
-            hash |= 0;
-        }
-        return hash.toString();
-    }
-    
     const firebaseConfig = {
         apiKey: "AIzaSyDSsIYqwWIPlxhiJnw0q_YnXCwOW2uNcqU",
         authDomain: "appigreja-3cffa.firebaseapp.com",
@@ -295,10 +286,11 @@
     }
     
     let usuarioEditando = null;
+    
+    // ==================== FUNÇÕES DE RELATÓRIO ====================
     let relatorioAtual = null;
     let relatorioTipo = null;
     
-    // ==================== FUNÇÕES DE RELATÓRIO ====================
     async function gerarRelatorio() {
         const dataSelecionada = document.getElementById("dataRelatorio").value;
         const tipo = document.getElementById("tipoRelatorio").value;
@@ -362,19 +354,19 @@
                             <th style="padding: 10px; border: 1px solid #334155;">Voluntário</th>
                             <th style="padding: 10px; border: 1px solid #334155;">Função</th>
                             <th style="padding: 10px; border: 1px solid #334155;">Horário</th>
-                         </tr>
+                        </tr>
                     </thead>
                     <tbody>
         `;
         
         agendamentos.forEach((item, index) => {
             html += `
-                 <tr>
+                <tr>
                     <td style="padding: 8px; border: 1px solid #334155; text-align: center;">${index + 1}</td>
                     <td style="padding: 8px; border: 1px solid #334155;">${escapeHtml(item.nome || "")}</td>
                     <td style="padding: 8px; border: 1px solid #334155;">${escapeHtml(item.vaga || "")}</td>
                     <td style="padding: 8px; border: 1px solid #334155;">${escapeHtml(item.culto || "")}</td>
-                 </tr>
+                </tr>
             `;
         });
         
@@ -477,13 +469,10 @@
                 return;
             }
             
-            // Salvar com HASH
-            const senhaHash = hashSenha(senha);
-            
             await db.collection("usuarios").add({
                 usuario: usuario,
                 nome: nome,
-                senha: senhaHash,
+                senha: senha,
                 role: role,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
@@ -495,35 +484,29 @@
             carregarUsuarios();
             showToast(`✅ Usuário ${usuario} cadastrado!`, "sucesso");
         } catch (error) {
-            console.error("Erro:", error);
-            showToast("❌ Erro ao cadastrar: " + error.message, "erro");
+            showToast("❌ Erro: " + error.message, "erro");
         }
     }
     
     async function carregarUsuarios() {
-        try {
-            const snapshot = await db.collection("usuarios").get();
-            let html = `<table class="tabela-usuarios"><thead><tr><th>Usuário</th><th>Nome</th><th>Tipo</th><th>Ações</th></tr></thead><tbody>`;
-            
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                html += `<tr>
-                    <td><strong>${escapeHtml(data.usuario)}</strong></td>
-                    <td>${escapeHtml(data.nome)}</td>
-                    <td>${data.role === 'admin' ? '<span class="badge-admin">👑 Admin</span>' : '<span class="badge-user">👤 Usuário</span>'}</td>
-                    <td>
-                        <button class="btn-editar" onclick="abrirModal('${doc.id}', '${data.usuario}', '${data.nome}', '${data.role}')">✏️ Editar</button>
-                        <button class="btn-excluir" onclick="excluirUsuario('${doc.id}', '${data.usuario}')">🗑️ Excluir</button>
-                    </td>
-                </tr>`;
-            });
-            
-            html += `</tbody></table>`;
-            document.getElementById("listaUsuarios").innerHTML = html || "<div style='padding:20px; text-align:center;'>Nenhum usuário</div>";
-        } catch (error) {
-            console.error("Erro ao carregar usuários:", error);
-            document.getElementById("listaUsuarios").innerHTML = "<div style='padding:20px; text-align:center; color:#ef4444;'>Erro ao carregar usuários</div>";
-        }
+        const snapshot = await db.collection("usuarios").get();
+        let html = `<table class="tabela-usuarios"><thead><tr><th>Usuário</th><th>Nome</th><th>Tipo</th><th>Ações</th></tr></thead><tbody>`;
+        
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            html += `<tr>
+                <td><strong>${escapeHtml(data.usuario)}</strong></td>
+                <td>${escapeHtml(data.nome)}</td>
+                <td>${data.role === 'admin' ? '<span class="badge-admin">👑 Admin</span>' : '<span class="badge-user">👤 Usuário</span>'}</td>
+                <td>
+                    <button class="btn-editar" onclick="abrirModal('${doc.id}', '${data.usuario}', '${data.nome}', '${data.role}')">✏️ Editar</button>
+                    <button class="btn-excluir" onclick="excluirUsuario('${doc.id}', '${data.usuario}')">🗑️ Excluir</button>
+                 </td>
+            </tr>`;
+        });
+        
+        html += `</tbody></table>`;
+        document.getElementById("listaUsuarios").innerHTML = html || "<div style='padding:20px; text-align:center;'>Nenhum usuário</div>";
     }
     
     function abrirModal(id, usuario, nome, role) {
@@ -552,17 +535,13 @@
                 showToast("❌ A senha deve ter pelo menos 4 caracteres!", "erro");
                 return;
             }
-            updateData.senha = hashSenha(novaSenha);
+            updateData.senha = novaSenha;
         }
         
-        try {
-            await db.collection("usuarios").doc(usuarioEditando).update(updateData);
-            fecharModal();
-            carregarUsuarios();
-            showToast("✅ Usuário atualizado!", "sucesso");
-        } catch (error) {
-            showToast("❌ Erro ao atualizar: " + error.message, "erro");
-        }
+        await db.collection("usuarios").doc(usuarioEditando).update(updateData);
+        fecharModal();
+        carregarUsuarios();
+        showToast("✅ Usuário atualizado!", "sucesso");
     }
     
     async function excluirUsuario(id, usuario) {
@@ -571,13 +550,9 @@
             return;
         }
         if (confirm(`Excluir ${usuario}?`)) {
-            try {
-                await db.collection("usuarios").doc(id).delete();
-                carregarUsuarios();
-                showToast(`✅ ${usuario} excluído!`, "sucesso");
-            } catch (error) {
-                showToast("❌ Erro ao excluir: " + error.message, "erro");
-            }
+            await db.collection("usuarios").doc(id).delete();
+            carregarUsuarios();
+            showToast(`✅ ${usuario} excluído!`, "sucesso");
         }
     }
     
