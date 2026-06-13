@@ -115,6 +115,7 @@
     
     <div class="info">
         📌 Contate o administrador para obter acesso<br>
+        📌 Usuário: admin | Senha: admin123
     </div>
     <div class="versiculo">
         🌿 "Cada um sirva conforme o dom que recebeu" - 1 Pedro 4:10
@@ -135,6 +136,16 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     
+    // ==================== FUNÇÃO HASH ====================
+    function hashSenha(senha) {
+        let hash = 0;
+        for (let i = 0; i < senha.length; i++) {
+            hash = ((hash << 5) - hash) + senha.charCodeAt(i);
+            hash |= 0;
+        }
+        return hash.toString();
+    }
+    
     // Usuário admin padrão (será criado se não existir)
     async function criarAdminPadrao() {
         try {
@@ -143,14 +154,24 @@
                 await db.collection("usuarios").add({
                     usuario: "admin",
                     nome: "Administrador",
-                    senha: "admin123",
+                    senha: hashSenha("admin123"),
                     role: "admin",
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                console.log("Admin padrão criado!");
+                console.log("Admin padrão criado com hash!");
+            } else {
+                // Verificar se o admin existente está com hash ou texto puro
+                const adminDoc = querySnapshot.docs[0];
+                const adminData = adminDoc.data();
+                if (adminData.senha !== hashSenha("admin123") && adminData.senha !== "admin123") {
+                    await db.collection("usuarios").doc(adminDoc.id).update({
+                        senha: hashSenha("admin123")
+                    });
+                    console.log("Admin atualizado para hash!");
+                }
             }
         } catch (error) {
-            console.log("Erro ao criar admin:", error);
+            console.log("Erro ao criar/atualizar admin:", error);
         }
     }
     
@@ -169,7 +190,6 @@
         document.getElementById("mensagem").innerHTML = "";
         
         try {
-            // Buscar usuário no Firestore
             const querySnapshot = await db.collection("usuarios").where("usuario", "==", usuario).get();
             
             if (querySnapshot.empty) {
@@ -180,9 +200,18 @@
             
             const userDoc = querySnapshot.docs[0];
             const userData = userDoc.data();
+            const senhaHash = hashSenha(senha);
             
-            // Verificar senha
-            if (userData.senha === senha) {
+            // 🔑 Comparação: senha pura (antiga) OU hash (nova)
+            if (userData.senha === senha || userData.senha === senhaHash) {
+                // Se a senha ainda está em texto puro, atualiza para hash
+                if (userData.senha === senha) {
+                    await db.collection("usuarios").doc(userDoc.id).update({
+                        senha: senhaHash
+                    });
+                    console.log("Senha convertida para hash para o usuário:", usuario);
+                }
+                
                 sessionStorage.setItem("logado", "true");
                 sessionStorage.setItem("usuario", userData.usuario);
                 sessionStorage.setItem("usuarioNome", userData.nome);
@@ -202,12 +231,10 @@
         }
     }
     
-    // Verificar se já está logado
     if (sessionStorage.getItem("logado") === "true") {
         window.location.href = "index.html";
     }
     
-    // Permitir Enter para logar
     document.getElementById("senha").addEventListener("keypress", function(e) {
         if (e.key === "Enter") fazerLogin();
     });
