@@ -154,7 +154,7 @@
                 await db.collection("usuarios").add({
                     usuario: "admin",
                     nome: "Administrador",
-                    senha: hashSenha("admin123"),
+                    senha: hashSenha("201940"),
                     role: "admin",
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
@@ -163,9 +163,9 @@
                 // Verificar se o admin existente está com hash ou texto puro
                 const adminDoc = querySnapshot.docs[0];
                 const adminData = adminDoc.data();
-                if (adminData.senha !== hashSenha("admin123") && adminData.senha !== "admin123") {
+                if (adminData.senha !== hashSenha("201940") && adminData.senha !== "201940") {
                     await db.collection("usuarios").doc(adminDoc.id).update({
-                        senha: hashSenha("admin123")
+                        senha: hashSenha("201940")
                     });
                     console.log("Admin atualizado para hash!");
                 }
